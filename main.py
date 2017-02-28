@@ -1,6 +1,7 @@
+from __future__ import print_function
 import itertools
 import numpy
-from tqdm import tqdm
+from scipy.misc import comb
 
 
 def get_value(ei_dot_ej):
@@ -21,6 +22,7 @@ def get_value(ei_dot_ej):
         + ei_dot_ej[2, 2]**2 * ei_dot_ej[0, 1]
         )
     return zeta
+
 
 def get_value2(idx, coeff_combos):
     # get the dot product
@@ -73,45 +75,6 @@ ei_dot_ej = numpy.einsum('ij, kj-> ik', e, e)
 zeta = get_value(ei_dot_ej)
 print(zeta)
 
-# zeta2 = \
-#     -0.5 * ei_dot_ej[0, 3] * ei_dot_ej[1, 1]** 2 \
-#     -12.0 * ei_dot_ej[1, 3]**2 * ei_dot_ej[2, 3]
-# print(zeta2)
-# exit(1)
-
-# x = numpy.array([
-#     [0.0, 0.0, 0.0],
-#     [1.3, 0.0, 0.0],
-#     [0.0, 2.3, 0.0],
-#     [0.0, 0.1, 2.0],
-#     ])
-# zeta2 = \
-#     + e0_dot_e0 * e1_dot_e1 * e2_dot_e2 \
-#     - e0_dot_e0 * e1_dot_e1 * e1_dot_e2 \
-#     + e0_dot_e0 * e1_dot_e2**2 \
-#     - e0_dot_e0 * e1_dot_e2 * e2_dot_e2
-# zeta3 = \
-#     + e0_dot_e0 * e1_dot_e1 * e2_dot_e2 \
-#     + 3 * e0_dot_e0**2 * e1_dot_e1 \
-#     - e0_dot_e0 * e1_dot_e1**2 \
-#     - e0_dot_e0 * e1_dot_e2 * e2_dot_e2
-# zeta4 = \
-#     + e0_dot_e0 * e1_dot_e1 * e2_dot_e2 \
-#     + e0_dot_e0 * e1_dot_e2 * (e1_dot_e2 - e1_dot_e1 - e2_dot_e2) \
-#     + e1_dot_e1 * e2_dot_e0 * (e2_dot_e0 - e2_dot_e2 - e0_dot_e0) \
-#     + e2_dot_e2 * e0_dot_e1 * (e0_dot_e1 - e0_dot_e0 - e1_dot_e1)
-# print(zeta4)
-# e1_dot_e3 = numpy.dot(e[1], e[3])
-# e2_dot_e3 = numpy.dot(e[2], e[3])
-# zeta5 = - e0_dot_e0 * e1_dot_e3 * e2_dot_e3
-# print(zeta5)
-# zeta6 = \
-#     -5.0 * e1_dot_e1 * e2_dot_e2 * e2_dot_e3 \
-#     -1.0 * e1_dot_e2**2 * e2_dot_e2 \
-#     - 6.0 * e1_dot_e2 * e2_dot_e3**2
-# print(zeta6)
-# exit(1)
-
 # two edges per dot-product
 num_edges = len(e)
 i0 = itertools.combinations_with_replacement(range(num_edges), 2)
@@ -119,13 +82,14 @@ i0 = itertools.combinations_with_replacement(range(num_edges), 2)
 j0 = itertools.combinations_with_replacement(i0, 3)
 # four summands in total
 num_summands = 3
-k = itertools.combinations_with_replacement(j0, num_summands)
+idx_it = itertools.combinations_with_replacement(j0, num_summands)
 
-print('Building data...')
-idx_list = list(k)
-print('done.')
-
-print(len(idx_list))
+# Number of elements from combinations_with_replacement(a, r) is
+#   (n-1+r)! / r! / (n-1)! = (n-1+r (over) r)
+# if len(a) == n.
+len_i0 = int(comb(num_edges+1, 2))
+len_j0 = int(comb(len_i0+2, 3))
+len_idx = int(comb(len_j0+2, 3))
 
 # add a coefficient to each summand
 coeffs = [
@@ -148,7 +112,10 @@ coeff_combos = numpy.array(
         list(itertools.product(coeffs, repeat=num_summands))
         )
 
-for idx in tqdm(idx_list):
+k = 0
+for idx in idx_it:
+    print('%d / %d  (%6.2f%%)' % (k, len_idx, 100.0*k/len_idx), end='\r')
+    k += 1
     alpha = get_value2(numpy.array(idx), coeff_combos)
     # check for zeta equality
     eql = abs(alpha - zeta) < 1.0e-10
