@@ -2,6 +2,7 @@ from __future__ import print_function
 import itertools
 import numpy
 from scipy.misc import comb
+from tqdm import tqdm
 
 
 def get_value(ei_dot_ej):
@@ -112,10 +113,7 @@ coeff_combos = numpy.array(
         list(itertools.product(coeffs, repeat=num_summands))
         )
 
-k = 0
-for idx in idx_it:
-    print('%d / %d  (%6.2f%%)' % (k, len_idx, 100.0*k/len_idx), end='\r')
-    k += 1
+for idx in tqdm(idx_it, total=len_idx):
     alpha = get_value2(numpy.array(idx), coeff_combos)
     # check for zeta equality
     eql = abs(alpha - zeta) < 1.0e-10
