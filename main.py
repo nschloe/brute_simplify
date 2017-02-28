@@ -71,7 +71,7 @@ def create_combinations(num_edges, num_summands):
     # if len(a) == n.
     len_i0 = comb(num_edges+1, 2, exact=True)
     len_j0 = comb(len_i0+2, 3, exact=True)
-    len_idx = comb(len_j0+2, 3, exact=True)
+    len_idx = comb(len_j0-1+num_summands, num_summands, exact=True)
     return idx_it, len_idx
 
 
@@ -79,9 +79,9 @@ def _main():
     x = numpy.random.rand(4, 3)
     # x = numpy.array([
     #     [0.0, 0.0, 0.0],
-    #     [1.3, 1.1, 0.7],
-    #     [0.3, 2.3, 1.0],
-    #     [0.2, 0.1, 2.0],
+    #     [1.3, 0.0, 0.0],
+    #     [0.0, 2.3, 0.0],
+    #     [0.0, 0.0, 2.0],
     #     ])
     e = numpy.array([
         x[1] - x[0],
