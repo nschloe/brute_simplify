@@ -25,7 +25,7 @@ def get_true_value(ei_dot_ej):
     return zeta
 
 
-def get_value2(idx, coeff_combos, ei_dot_ej):
+def evaluate(idx, coeff_combos, ei_dot_ej):
     # get the dot product
     a = ei_dot_ej[idx[..., 0], idx[..., 1]]
     # multiply the dot products
@@ -36,7 +36,6 @@ def get_value2(idx, coeff_combos, ei_dot_ej):
 
 
 def works_with_random_points(cc, idx):
-    d = numpy.array(idx)
     num_samples = 10
     for k in range(num_samples):
         x = numpy.random.rand(4, 3)
@@ -50,7 +49,7 @@ def works_with_random_points(cc, idx):
             ])
         ei_dot_ej = numpy.einsum('ij, kj-> ik', e, e)
         zeta = get_true_value(ei_dot_ej)
-        alpha = get_value2(d, cc, ei_dot_ej)
+        alpha = evaluate(idx, cc, ei_dot_ej)
         # check for zeta equality
         if abs(alpha - zeta) > 1.0e-10:
             return False
@@ -106,28 +105,29 @@ def _main():
             +1.0, -1.0,
             +2.0, -2.0,
             +3.0, -3.0,
-            # +4.0, -4.0,
+            +4.0, -4.0,
             # +5.0, -5.0,
-            # +6.0, -6.0,
+            +6.0, -6.0,
             # +7.0, -7.0,
             # +8.0, -8.0,
             # +9.0, -9.0,
             # +10.0, -10.0,
             # +11.0, -11.0,
-            # +12.0, -12.0,
-            # +24.0, -24.0,
+            +12.0, -12.0,
+            +24.0, -24.0,
             ]
     coeff_combos = numpy.array(
             list(itertools.product(coeffs, repeat=num_summands))
             )
 
     for idx in tqdm(idx_it, total=len_idx):
-        alpha = get_value2(numpy.array(idx), coeff_combos, ei_dot_ej)
+        idx_array = numpy.array(idx)
+        alpha = evaluate(idx_array, coeff_combos, ei_dot_ej)
         # check for zeta equality
         eql = abs(alpha - zeta) < 1.0e-10
         if numpy.any(eql):
             cc = coeff_combos[numpy.where(eql)[0]]
-            if works_with_random_points(cc, idx):
+            if works_with_random_points(cc, idx_array):
                 print(cc, idx)
                 print('Success!')
 
