@@ -26,11 +26,14 @@ def get_true_value(ei_dot_ej):
 
 
 def evaluate(idx, coeff_combos, ei_dot_ej):
-    # get the dot product
+    # get the dot product <e_i, e_j>
     a = ei_dot_ej[idx[..., 0], idx[..., 1]]
     # multiply the dot products
+    # <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
     prd = numpy.prod(a, axis=1)
     # compute the sums with the coefficients
+    # + alpha_0 * <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
+    # + [...]
     alpha = numpy.dot(coeff_combos, prd)
     return alpha
 
