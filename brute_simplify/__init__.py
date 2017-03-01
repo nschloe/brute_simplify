@@ -4,26 +4,6 @@ from scipy.misc import comb
 from tqdm import tqdm
 
 
-def get_ce_ratio(ei_dot_ej):
-    zeta = (
-        + ei_dot_ej[0, 0] * ei_dot_ej[1, 1] * ei_dot_ej[2, 2]
-        - 4 * ei_dot_ej[0, 1] * ei_dot_ej[1, 2] * ei_dot_ej[2, 0]
-        - (
-            + ei_dot_ej[0, 0] * ei_dot_ej[1, 2]
-            + ei_dot_ej[1, 1] * ei_dot_ej[2, 0]
-            + ei_dot_ej[2, 2] * ei_dot_ej[0, 1]
-            )
-        * (
-            + ei_dot_ej[0, 0] + ei_dot_ej[1, 1] + ei_dot_ej[2, 2]
-            - ei_dot_ej[0, 1] - ei_dot_ej[1, 2] - ei_dot_ej[2, 0]
-        )
-        + ei_dot_ej[0, 0]**2 * ei_dot_ej[1, 2]
-        + ei_dot_ej[1, 1]**2 * ei_dot_ej[2, 0]
-        + ei_dot_ej[2, 2]**2 * ei_dot_ej[0, 1]
-        )
-    return zeta
-
-
 def check(ei_dot_ej, idx, zeta):
     # get the dot product <e_i, e_j>
     a = ei_dot_ej[idx[..., 0], idx[..., 1]].T
