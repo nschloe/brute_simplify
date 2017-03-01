@@ -24,10 +24,6 @@ def get_ce_ratio(ei_dot_ej):
     return zeta
 
 
-def get_scalar_triple_product_squared(e):
-    return numpy.einsum('ij, ij->i', e[0], numpy.cross(e[1], e[2]))**2
-
-
 def create_coeffs(ei_dot_ej, idx, zeta):
     # get the dot product <e_i, e_j>
     a = ei_dot_ej[idx[..., 0], idx[..., 1]].T
@@ -78,8 +74,7 @@ def create_combinations(num_edges, num_summands):
     return idx_it, len_idx
 
 
-def _main():
-    num_summands = 5
+def triple_tet_find(compute_target, num_summands=5):
 
     # Create num_summands many random tetrahedra. Those are used to determine
     # the coefficients for the summands later. Take one more for validation.
@@ -93,13 +88,14 @@ def _main():
         # x_full[2] - x_full[1],
         # x_full[1] - x_full[3],
         ])
-    # ei_dot_ej = numpy.einsum('ij, kj->ik', e, e)
-    ei_dot_ej_full = numpy.einsum('ilj, klj->ikl', e_full, e_full)
 
+    target_full = compute_target(e_full)
     # different targets
     # target_full = get_ce_ratio(ei_dot_ej_full)
-    target_full = get_scalar_triple_product_squared(e_full)
-    print(target_full)
+    # target_full = get_scalar_triple_product_squared(e_full)
+
+    # ei_dot_ej = numpy.einsum('ij, kj->ik', e, e)
+    ei_dot_ej_full = numpy.einsum('ilj, klj->ikl', e_full, e_full)
 
     ei_dot_ej = ei_dot_ej_full[..., :-1]
     target = target_full[:-1]
@@ -109,6 +105,7 @@ def _main():
 
     idx_it, len_idx = create_combinations(len(e_full), num_summands)
 
+    solutions = []
     for idx in tqdm(idx_it, total=len_idx):
         idx_array = numpy.array(idx)
         cc = create_coeffs(ei_dot_ej, idx_array, target)
@@ -116,9 +113,6 @@ def _main():
         if cc is not None and \
                 validate_coeffs(ei_dot_ej_valid, idx_array, target_valid, cc):
             print(cc, idx)
+            solutions.append((cc, idx))
 
-    return
-
-
-if __name__ == '__main__':
-    _main()
+    return solutions
