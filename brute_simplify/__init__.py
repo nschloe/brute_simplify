@@ -33,6 +33,10 @@ def check(ei_dot_ej, idx, zeta):
 
     x, residuals, rank, s = numpy.linalg.lstsq(A, zeta)
 
+    # A is of shape (n+1, n), where each row corresponds to a random
+    # tetrahedron, each column to a coefficient.
+    # If this equation system has a solution, it's probably valid for many more
+    # tetrahedra.
     res = numpy.dot(A, x) - zeta
     if numpy.all(abs(res) < 1.0e-10):
         return x
@@ -61,38 +65,30 @@ def create_combinations(num_edges, num_summands):
     return idx_it, len_idx
 
 
-def triple_tet_find(compute_target, num_summands=5):
-
-    # Create num_summands many random tetrahedra. Those are used to determine
-    # the coefficients for the summands later. Take one more for validation.
+def triple_tet_find(compute_targets, edges, num_summands=5, verbose=True):
+    # Create num_summands+1 many random tetrahedra.
     x = numpy.random.rand(4, num_summands+1, 3)
-    e = numpy.array([
-        x[1] - x[0],
-        x[2] - x[0],
-        x[3] - x[0],
-        # #
-        # x_full[3] - x_full[2],
-        # x_full[2] - x_full[1],
-        # x_full[1] - x_full[3],
-        ])
 
-    target = compute_target(e)
-    # different targets
-    # target_full = get_ce_ratio(ei_dot_ej_full)
-    # target_full = get_scalar_triple_product_squared(e_full)
+    targets = compute_targets(x)
 
-    # ei_dot_ej = numpy.einsum('ij, kj->ik', e, e)
+    i = numpy.array(edges)
+    e = x[i[:, 0]] - x[i[:, 1]]
     ei_dot_ej = numpy.einsum('ilj, klj->ikl', e, e)
 
     idx_it, len_idx = create_combinations(len(e), num_summands)
 
     solutions = []
-    for idx in tqdm(idx_it, total=len_idx):
+    if verbose:
+        it = tqdm(idx_it, total=len_idx)
+    else:
+        it = idx_it
+    for idx in it:
         idx_array = numpy.array(idx)
-        cc = check(ei_dot_ej, idx_array, target)
+        cc = check(ei_dot_ej, idx_array, targets)
 
         if cc is not None:
-            print(cc, idx)
+            if verbose:
+                print(cc, idx)
             solutions.append((cc, idx))
 
     return solutions
