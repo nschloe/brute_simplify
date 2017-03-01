@@ -24,27 +24,8 @@ def get_ce_ratio(ei_dot_ej):
     return zeta
 
 
-def get_scalar_triple_product(ei_dot_ej):
-    return (
-        + ei_dot_ej[0, 0] * ei_dot_ej[1, 1] * ei_dot_ej[2, 2]
-        + 2 * ei_dot_ej[0, 1] * ei_dot_ej[1, 2] * ei_dot_ej[2, 0]
-        - ei_dot_ej[0, 0] * ei_dot_ej[1, 2]**2
-        - ei_dot_ej[1, 1] * ei_dot_ej[2, 0]**2
-        - ei_dot_ej[2, 2] * ei_dot_ej[0, 1]**2
-        )
-
-
-# def evaluate(idx, coeff_combos, ei_dot_ej):
-#     # get the dot product <e_i, e_j>
-#     a = ei_dot_ej[idx[..., 0], idx[..., 1]]
-#     # multiply the dot products
-#     # <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
-#     prd = numpy.prod(a, axis=-1)
-#     # compute the sums with the coefficients
-#     # + alpha_0 * <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
-#     # + [...]
-#     alpha = numpy.dot(coeff_combos, prd)
-#     return alpha
+def get_scalar_triple_product_squared(e):
+    return numpy.einsum('ij, ij->i', e[0], numpy.cross(e[1], e[2]))**2
 
 
 def create_coeffs(ei_dot_ej, idx, zeta):
@@ -98,7 +79,7 @@ def create_combinations(num_edges, num_summands):
 
 
 def _main():
-    num_summands = 3
+    num_summands = 5
 
     # Create num_summands many random tetrahedra. Those are used to determine
     # the coefficients for the summands later. Take one more for validation.
@@ -107,17 +88,18 @@ def _main():
         x_full[1] - x_full[0],
         x_full[2] - x_full[0],
         x_full[3] - x_full[0],
-        #
-        x_full[3] - x_full[2],
-        x_full[2] - x_full[1],
-        x_full[1] - x_full[3],
+        # #
+        # x_full[3] - x_full[2],
+        # x_full[2] - x_full[1],
+        # x_full[1] - x_full[3],
         ])
     # ei_dot_ej = numpy.einsum('ij, kj->ik', e, e)
     ei_dot_ej_full = numpy.einsum('ilj, klj->ikl', e_full, e_full)
 
     # different targets
     # target_full = get_ce_ratio(ei_dot_ej_full)
-    target_full = get_scalar_triple_product(ei_dot_ej_full)
+    target_full = get_scalar_triple_product_squared(e_full)
+    print(target_full)
 
     ei_dot_ej = ei_dot_ej_full[..., :-1]
     target = target_full[:-1]
