@@ -4,7 +4,7 @@ from scipy.misc import comb
 from tqdm import tqdm
 
 
-def get_true_value(ei_dot_ej):
+def get_ce_ratio(ei_dot_ej):
     zeta = (
         + ei_dot_ej[0, 0] * ei_dot_ej[1, 1] * ei_dot_ej[2, 2]
         - 4 * ei_dot_ej[0, 1] * ei_dot_ej[1, 2] * ei_dot_ej[2, 0]
@@ -22,6 +22,16 @@ def get_true_value(ei_dot_ej):
         + ei_dot_ej[2, 2]**2 * ei_dot_ej[0, 1]
         )
     return zeta
+
+
+def get_scalar_triple_product(ei_dot_ej):
+    return (
+        + ei_dot_ej[0, 0] * ei_dot_ej[1, 1] * ei_dot_ej[2, 2]
+        + 2 * ei_dot_ej[0, 1] * ei_dot_ej[1, 2] * ei_dot_ej[2, 0]
+        - ei_dot_ej[0, 0] * ei_dot_ej[1, 2]**2
+        - ei_dot_ej[1, 1] * ei_dot_ej[2, 0]**2
+        - ei_dot_ej[2, 2] * ei_dot_ej[0, 1]**2
+        )
 
 
 # def evaluate(idx, coeff_combos, ei_dot_ej):
@@ -88,7 +98,7 @@ def create_combinations(num_edges, num_summands):
 
 
 def _main():
-    num_summands = 2
+    num_summands = 3
 
     # Create num_summands many random tetrahedra. Those are used to determine
     # the coefficients for the summands later. Take one more for validation.
@@ -104,22 +114,25 @@ def _main():
         ])
     # ei_dot_ej = numpy.einsum('ij, kj->ik', e, e)
     ei_dot_ej_full = numpy.einsum('ilj, klj->ikl', e_full, e_full)
-    zeta_full = get_true_value(ei_dot_ej_full)
+
+    # different targets
+    # target_full = get_ce_ratio(ei_dot_ej_full)
+    target_full = get_scalar_triple_product(ei_dot_ej_full)
 
     ei_dot_ej = ei_dot_ej_full[..., :-1]
-    zeta = zeta_full[:-1]
+    target = target_full[:-1]
     #
     ei_dot_ej_valid = ei_dot_ej_full[..., -1]
-    zeta_valid = zeta_full[-1]
+    target_valid = target_full[-1]
 
     idx_it, len_idx = create_combinations(len(e_full), num_summands)
 
     for idx in tqdm(idx_it, total=len_idx):
         idx_array = numpy.array(idx)
-        cc = create_coeffs(ei_dot_ej, idx_array, zeta)
+        cc = create_coeffs(ei_dot_ej, idx_array, target)
 
         if cc is not None and \
-                validate_coeffs(ei_dot_ej_valid, idx_array, zeta_valid, cc):
+                validate_coeffs(ei_dot_ej_valid, idx_array, target_valid, cc):
             print(cc, idx)
 
     return
