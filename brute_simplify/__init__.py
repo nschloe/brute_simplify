@@ -24,33 +24,20 @@ def get_ce_ratio(ei_dot_ej):
     return zeta
 
 
-def create_coeffs(ei_dot_ej, idx, zeta):
+def check(ei_dot_ej, idx, zeta):
     # get the dot product <e_i, e_j>
     a = ei_dot_ej[idx[..., 0], idx[..., 1]].T
     # multiply the dot products
     # <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
     A = numpy.prod(a, axis=1)
-    vals = numpy.linalg.eigvals(A)
-    if min(abs(vals)) < 1.0e-10:
-        # It happens that A is singular, e.g., for
-        #   <e0, e0> <e0, e0> <e0, e1>,
-        #   <e0, e0> <e0, e0> <e0, e2>,
-        #   <e0, e0> <e0, e0> <e0, e3>
-        # if e1, e2, e3 are linearly dependent. In this case, there is an
-        # equivalent nonsingular matrix that is smaller. In any case, skip.
-        return None
-    x = numpy.linalg.solve(A, zeta)
-    if False:
-        # Should all pass, but it double-checked later anyways.
-        for k in range(len(zeta)):
-            assert validate_coeffs(ei_dot_ej[..., k], idx, zeta[k], x)
-    return x
 
+    x, residuals, rank, s = numpy.linalg.lstsq(A, zeta)
 
-def validate_coeffs(ei_dot_ej, idx, zeta, x):
-    a = ei_dot_ej[idx[..., 0], idx[..., 1]]
-    A = numpy.prod(a, axis=1)
-    return abs(numpy.dot(A, x) - zeta) < 1.0e-10
+    res = numpy.dot(A, x) - zeta
+    if numpy.all(abs(res) < 1.0e-10):
+        return x
+
+    return None
 
 
 def create_combinations(num_edges, num_summands):
@@ -78,40 +65,33 @@ def triple_tet_find(compute_target, num_summands=5):
 
     # Create num_summands many random tetrahedra. Those are used to determine
     # the coefficients for the summands later. Take one more for validation.
-    x_full = numpy.random.rand(4, num_summands+1, 3)
-    e_full = numpy.array([
-        x_full[1] - x_full[0],
-        x_full[2] - x_full[0],
-        x_full[3] - x_full[0],
+    x = numpy.random.rand(4, num_summands+1, 3)
+    e = numpy.array([
+        x[1] - x[0],
+        x[2] - x[0],
+        x[3] - x[0],
         # #
         # x_full[3] - x_full[2],
         # x_full[2] - x_full[1],
         # x_full[1] - x_full[3],
         ])
 
-    target_full = compute_target(e_full)
+    target = compute_target(e)
     # different targets
     # target_full = get_ce_ratio(ei_dot_ej_full)
     # target_full = get_scalar_triple_product_squared(e_full)
 
     # ei_dot_ej = numpy.einsum('ij, kj->ik', e, e)
-    ei_dot_ej_full = numpy.einsum('ilj, klj->ikl', e_full, e_full)
+    ei_dot_ej = numpy.einsum('ilj, klj->ikl', e, e)
 
-    ei_dot_ej = ei_dot_ej_full[..., :-1]
-    target = target_full[:-1]
-    #
-    ei_dot_ej_valid = ei_dot_ej_full[..., -1]
-    target_valid = target_full[-1]
-
-    idx_it, len_idx = create_combinations(len(e_full), num_summands)
+    idx_it, len_idx = create_combinations(len(e), num_summands)
 
     solutions = []
     for idx in tqdm(idx_it, total=len_idx):
         idx_array = numpy.array(idx)
-        cc = create_coeffs(ei_dot_ej, idx_array, target)
+        cc = check(ei_dot_ej, idx_array, target)
 
-        if cc is not None and \
-                validate_coeffs(ei_dot_ej_valid, idx_array, target_valid, cc):
+        if cc is not None:
             print(cc, idx)
             solutions.append((cc, idx))
 
