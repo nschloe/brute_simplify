@@ -1,4 +1,3 @@
-from __future__ import print_function
 import itertools
 import numpy
 from scipy.misc import comb
@@ -25,38 +24,46 @@ def get_true_value(ei_dot_ej):
     return zeta
 
 
-def evaluate(idx, coeff_combos, ei_dot_ej):
+# def evaluate(idx, coeff_combos, ei_dot_ej):
+#     # get the dot product <e_i, e_j>
+#     a = ei_dot_ej[idx[..., 0], idx[..., 1]]
+#     # multiply the dot products
+#     # <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
+#     prd = numpy.prod(a, axis=-1)
+#     # compute the sums with the coefficients
+#     # + alpha_0 * <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
+#     # + [...]
+#     alpha = numpy.dot(coeff_combos, prd)
+#     return alpha
+
+
+def create_coeffs(ei_dot_ej, idx, zeta):
     # get the dot product <e_i, e_j>
-    a = ei_dot_ej[idx[..., 0], idx[..., 1]]
+    a = ei_dot_ej[idx[..., 0], idx[..., 1]].T
     # multiply the dot products
     # <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
-    prd = numpy.prod(a, axis=1)
-    # compute the sums with the coefficients
-    # + alpha_0 * <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
-    # + [...]
-    alpha = numpy.dot(coeff_combos, prd)
-    return alpha
+    A = numpy.prod(a, axis=1)
+    vals = numpy.linalg.eigvals(A)
+    if min(abs(vals)) < 1.0e-10:
+        # It happens that A is singular, e.g., for
+        #   <e0, e0> <e0, e0> <e0, e1>,
+        #   <e0, e0> <e0, e0> <e0, e2>,
+        #   <e0, e0> <e0, e0> <e0, e3>
+        # if e1, e2, e3 are linearly dependent. In this case, there is an
+        # equivalent nonsingular matrix that is smaller. In any case, skip.
+        return None
+    x = numpy.linalg.solve(A, zeta)
+    if False:
+        # Should all pass, but it double-checked later anyways.
+        for k in range(len(zeta)):
+            assert validate_coeffs(ei_dot_ej[..., k], idx, zeta[k], x)
+    return x
 
 
-def works_with_random_points(cc, idx):
-    num_samples = 10
-    for k in range(num_samples):
-        x = numpy.random.rand(4, 3)
-        e = numpy.array([
-            x[1] - x[0],
-            x[2] - x[0],
-            x[3] - x[0],
-            x[3] - x[2],
-            x[2] - x[1],
-            x[1] - x[3],
-            ])
-        ei_dot_ej = numpy.einsum('ij, kj-> ik', e, e)
-        zeta = get_true_value(ei_dot_ej)
-        alpha = evaluate(idx, cc, ei_dot_ej)
-        # check for zeta equality
-        if abs(alpha - zeta) > 1.0e-10:
-            return False
-    return True
+def validate_coeffs(ei_dot_ej, idx, zeta, x):
+    a = ei_dot_ej[idx[..., 0], idx[..., 1]]
+    A = numpy.prod(a, axis=1)
+    return abs(numpy.dot(A, x) - zeta) < 1.0e-10
 
 
 def create_combinations(num_edges, num_summands):
@@ -65,74 +72,55 @@ def create_combinations(num_edges, num_summands):
     i0 = itertools.combinations_with_replacement(range(num_edges), 2)
     # three dot products per summand
     j0 = itertools.combinations_with_replacement(i0, 3)
-    # add up a bunch of summands
-    idx_it = itertools.combinations_with_replacement(j0, num_summands)
+    # Add up a bunch of summands. Make sure they are differnet (no
+    # `_with_replacement`); the rest is handled by the coefficients later.
+    idx_it = itertools.combinations(j0, num_summands)
 
     # Number of elements from combinations_with_replacement(a, r) is
     #   (n-1+r)! / r! / (n-1)! = (n-1+r (over) r)
     # if len(a) == n.
     len_i0 = comb(num_edges+1, 2, exact=True)
     len_j0 = comb(len_i0+2, 3, exact=True)
-    len_idx = comb(len_j0-1+num_summands, num_summands, exact=True)
+    # n! / r! / (n-r)! = (n (over) r)
+    # len_idx = comb(len_j0, num_summands, exact=True)
+    len_idx = comb(len_j0, num_summands, exact=True)
     return idx_it, len_idx
 
 
 def _main():
-    x = numpy.random.rand(4, 3)
-    # x = numpy.array([
-    #     [0.0, 0.0, 0.0],
-    #     [1.3, 0.0, 0.0],
-    #     [0.0, 2.3, 0.0],
-    #     [0.0, 0.0, 2.0],
-    #     ])
-    e = numpy.array([
-        x[1] - x[0],
-        x[2] - x[0],
-        x[3] - x[0],
+    num_summands = 2
+
+    # Create num_summands many random tetrahedra. Those are used to determine
+    # the coefficients for the summands later. Take one more for validation.
+    x_full = numpy.random.rand(4, num_summands+1, 3)
+    e_full = numpy.array([
+        x_full[1] - x_full[0],
+        x_full[2] - x_full[0],
+        x_full[3] - x_full[0],
         #
-        x[3] - x[2],
-        x[2] - x[1],
-        x[1] - x[3],
+        x_full[3] - x_full[2],
+        x_full[2] - x_full[1],
+        x_full[1] - x_full[3],
         ])
-    ei_dot_ej = numpy.einsum('ij, kj-> ik', e, e)
+    # ei_dot_ej = numpy.einsum('ij, kj->ik', e, e)
+    ei_dot_ej_full = numpy.einsum('ilj, klj->ikl', e_full, e_full)
+    zeta_full = get_true_value(ei_dot_ej_full)
 
-    zeta = get_true_value(ei_dot_ej)
-    print(zeta)
+    ei_dot_ej = ei_dot_ej_full[..., :-1]
+    zeta = zeta_full[:-1]
+    #
+    ei_dot_ej_valid = ei_dot_ej_full[..., -1]
+    zeta_valid = zeta_full[-1]
 
-    num_summands = 3
-    idx_it, len_idx = create_combinations(len(e), num_summands)
-
-    # add a coefficient to each summand
-    coeffs = [
-            0.0,
-            +1.0, -1.0,
-            +2.0, -2.0,
-            +3.0, -3.0,
-            +4.0, -4.0,
-            # +5.0, -5.0,
-            +6.0, -6.0,
-            # +7.0, -7.0,
-            # +8.0, -8.0,
-            # +9.0, -9.0,
-            # +10.0, -10.0,
-            # +11.0, -11.0,
-            +12.0, -12.0,
-            +24.0, -24.0,
-            ]
-    coeff_combos = numpy.array(
-            list(itertools.product(coeffs, repeat=num_summands))
-            )
+    idx_it, len_idx = create_combinations(len(e_full), num_summands)
 
     for idx in tqdm(idx_it, total=len_idx):
         idx_array = numpy.array(idx)
-        alpha = evaluate(idx_array, coeff_combos, ei_dot_ej)
-        # check for zeta equality
-        eql = abs(alpha - zeta) < 1.0e-10
-        if numpy.any(eql):
-            cc = coeff_combos[numpy.where(eql)[0]]
-            if works_with_random_points(cc, idx_array):
-                print(cc, idx)
-                print('Success!')
+        cc = create_coeffs(ei_dot_ej, idx_array, zeta)
+
+        if cc is not None and \
+                validate_coeffs(ei_dot_ej_valid, idx_array, zeta_valid, cc):
+            print(cc, idx)
 
     return
 
