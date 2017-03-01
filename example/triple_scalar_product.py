@@ -8,8 +8,14 @@ def get_tsps(x):
     return numpy.einsum('ij, ij->i', e[0], numpy.cross(e[1], e[2]))
 
 
+# out = brute_simplify.triple_tet_find(
+#     get_tsps,
+#     [[1, 0], [2, 0], [3, 0]],
+#     num_summands=5
+#     )
 out = brute_simplify.triple_tet_find(
     get_tsps,
-    [[1, 0], [2, 0], [3, 0]],
-    num_summands=5
+    [[1, 0], [2, 0], [3, 0], [2, 1], [3, 2], [1, 3]],
+    num_summands=3
     )
+print(out)

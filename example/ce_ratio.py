@@ -34,5 +34,6 @@ def get_ce_ratio(x):
 out = brute_simplify.triple_tet_find(
     get_ce_ratio,
     [[1, 0], [2, 0], [3, 0], [2, 1], [3, 2], [1, 3]],
-    num_summands=5
+    num_summands=3
     )
+print(out)
