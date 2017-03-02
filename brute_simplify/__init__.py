@@ -1,6 +1,7 @@
 import itertools
 import numpy
 from scipy.misc import comb
+import sys
 from tqdm import tqdm
 
 
@@ -71,7 +72,11 @@ def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
-    return itertools.zip_longest(*args, fillvalue=fillvalue)
+    if sys.version_info[0] == 3:
+        zl = itertools.zip_longest
+    else:
+        zl = itertools.izip_longest
+    return zl(*args, fillvalue=fillvalue)
 
 
 def triple_tet_find(
