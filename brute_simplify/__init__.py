@@ -28,11 +28,9 @@ def check(ei_dot_ej, idx, zeta):
     # tetrahedra.
     A = numpy.rollaxis(A, 2)
 
-    x = []
-    for k in range(idx.shape[0]):
-        xx, residuals, rank, s = numpy.linalg.lstsq(A[k], zeta)
-        x.append(xx)
-    x = numpy.array(x)
+    # adapt the rhs for size
+    zeta = numpy.outer(numpy.ones(A.shape[0]), zeta)
+    x = least_squares(A, zeta)
 
     A_dot_x = numpy.einsum('ijk, ik->ij', A, x)
     res = A_dot_x - zeta
@@ -76,7 +74,13 @@ def grouper(iterable, n, fillvalue=None):
     return itertools.zip_longest(*args, fillvalue=fillvalue)
 
 
-def triple_tet_find(compute_targets, edges, num_summands=5, verbose=True):
+def triple_tet_find(
+        compute_targets,
+        edges,
+        num_summands=5,
+        batch_size=100,
+        verbose=True
+        ):
     # Create num_summands+1 many random tetrahedra.
     x = numpy.random.rand(4, num_summands+1, 3)
 
@@ -89,7 +93,6 @@ def triple_tet_find(compute_targets, edges, num_summands=5, verbose=True):
 
     idx_it, len_idx = create_combinations(len(e), num_summands)
 
-    batch_size = 2
     idx_it = grouper(idx_it, batch_size)
     len_idx = int(len_idx / batch_size) + 1
 
