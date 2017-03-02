@@ -17,9 +17,9 @@ def test_coefficient():
 
     assert len(out) == 1
     assert (abs(out[0][0] - numpy.array([0.225])) < 1.0e-12).all()
-    assert out[0][1] == (
+    assert (out[0][1] == (
         ((0, 0), (1, 1), (2, 2)),
-        )
+        )).all()
 
     return
 
@@ -42,12 +42,8 @@ def test_simplification():
 
     assert len(out) == 1
     assert (abs(out[0][0] - numpy.array([-1.0])) < 1.0e-12).all()
-    assert out[0][1] == (
+    assert (out[0][1] == (
         ((0, 3), (1, 1), (2, 2)),
-        )
+        )).all()
 
     return
-
-
-if __name__ == '__main__':
-    test_simple()
