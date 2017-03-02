@@ -4,26 +4,6 @@ from scipy.misc import comb
 from tqdm import tqdm
 
 
-def check(ei_dot_ej, idx, zeta):
-    # get the dot product <e_i, e_j>
-    a = ei_dot_ej[idx[..., 0], idx[..., 1]].T
-    # multiply the dot products
-    # <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
-    A = numpy.prod(a, axis=1)
-
-    x, residuals, rank, s = numpy.linalg.lstsq(A, zeta)
-
-    # A is of shape (n+1, n), where each row corresponds to a random
-    # tetrahedron, each column to a coefficient.
-    # If this equation system has a solution, it's probably valid for many more
-    # tetrahedra.
-    res = numpy.dot(A, x) - zeta
-    if numpy.all(abs(res) < 1.0e-10):
-        return x
-
-    return None
-
-
 def least_squares(A, b):
     # http://stackoverflow.com/a/42537466/353337
     # https://github.com/numpy/numpy/issues/8720
@@ -33,13 +13,25 @@ def least_squares(A, b):
     return xx
 
 
-def _check2(ei_dot_ej, idx, zeta):
+def check(ei_dot_ej, idx, zeta):
     # get the dot product <e_i, e_j>
     out = []
     for k in range(idx.shape[0]):
-        cc = _check2(ei_dot_ej, idx[k], zeta)
-        if cc is not None:
-            out.append((cc, idx[k]))
+        # get the dot product <e_i, e_j>
+        a = ei_dot_ej[idx[k, ..., 0], idx[k, ..., 1]].T
+        # multiply the dot products
+        # <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
+        A = numpy.prod(a, axis=1)
+
+        x, residuals, rank, s = numpy.linalg.lstsq(A, zeta)
+
+        # A is of shape (n+1, n), where each row corresponds to a random
+        # tetrahedron, each column to a coefficient.
+        # If this equation system has a solution, it's probably valid for many
+        # more tetrahedra.
+        res = numpy.dot(A, x) - zeta
+        if numpy.all(abs(res) < 1.0e-10):
+            out.append((x, idx[k]))
     return out
     # a = ei_dot_ej[idx[k, ..., 1], idx[k, ..., 0]].T
     # # a = numpy.rollaxis(a, -1, start=1)
@@ -106,24 +98,23 @@ def triple_tet_find(compute_targets, edges, num_summands=5, verbose=True):
     targets = compute_targets(x)
 
     edges_array = numpy.array(edges)
-    e = x[edges_array[:, 0]] - edges_array[i[:, 1]]
+    e = x[edges_array[:, 0]] - x[edges_array[:, 1]]
 
     ei_dot_ej = numpy.einsum('ilj, klj->ikl', e, e)
 
     idx_it, len_idx = create_combinations(len(e), num_summands)
 
-    # batch_size = 1
-    # idx_it = grouper(idx_it, batch_size)
-    # len_idx = int(len_idx / batch_size) + 1
+    batch_size = 2
+    idx_it = grouper(idx_it, batch_size)
+    len_idx = int(len_idx / batch_size) + 1
 
     solutions = []
     it = tqdm(idx_it, total=len_idx) if verbose else idx_it
     for idx in it:
         idx_array = numpy.array(idx)
-        cc = check(ei_dot_ej, idx_array, targets)
-
-        if cc is not None:
-            print(cc, idx)
-            solutions.append((cc, idx))
+        out = check(ei_dot_ej, idx_array, targets)
+        if out:
+            print(out)
+            solutions += out
 
     return solutions
