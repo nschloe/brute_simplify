@@ -104,7 +104,13 @@ def triple_tet_find(
     solutions = []
     it = tqdm(idx_it, total=len_idx) if verbose else idx_it
     for idx in it:
+        # The last batch may be smaller and contains Nones as fillers. Remove
+        # them.
+        idx = list(idx)
+        while idx and idx[-1] is None:
+            idx.pop()
         idx_array = numpy.array(idx)
+
         out = check(ei_dot_ej, idx_array, targets)
         if out:
             print(out)
