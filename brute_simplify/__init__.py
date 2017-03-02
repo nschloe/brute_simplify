@@ -16,50 +16,35 @@ def least_squares(A, b):
 def check(ei_dot_ej, idx, zeta):
     # get the dot product <e_i, e_j>
     out = []
+    # get the dot product <e_i, e_j>
+    a = ei_dot_ej[idx[..., 0], idx[..., 1]].T
+    # multiply the dot products
+    # <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
+    A = numpy.prod(a, axis=1)
+    # roll the last axis to the front; numpy's vectorization needs that. :(
+    # A is now of shape (777, n+1, n), where each row corresponds to a random
+    # tetrahedron, each column to a coefficient.
+    # If this equation system has a solution, it's probably valid for many more
+    # tetrahedra.
+    A = numpy.rollaxis(A, 2)
+
+    x = []
     for k in range(idx.shape[0]):
-        # get the dot product <e_i, e_j>
-        a = ei_dot_ej[idx[k, ..., 0], idx[k, ..., 1]].T
-        # multiply the dot products
-        # <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
-        A = numpy.prod(a, axis=1)
+        xx, residuals, rank, s = numpy.linalg.lstsq(A[k], zeta)
+        x.append(xx)
+    x = numpy.array(x)
 
-        x, residuals, rank, s = numpy.linalg.lstsq(A, zeta)
+    A_dot_x = numpy.einsum('ijk, ik->ij', A, x)
+    res = A_dot_x - zeta
+    # Check if for any item, all of the residuals are 0.
+    res2 = numpy.all(abs(res) < 1.0e-10, axis=1)
 
-        # A is of shape (n+1, n), where each row corresponds to a random
-        # tetrahedron, each column to a coefficient.
-        # If this equation system has a solution, it's probably valid for many
-        # more tetrahedra.
-        res = numpy.dot(A, x) - zeta
-        if numpy.all(abs(res) < 1.0e-10):
-            out.append((x, idx[k]))
+    out = []
+    if numpy.any(res2):
+        K = numpy.where(res2)[0]
+        out += [(x[k], idx[k]) for k in K]
+
     return out
-    # a = ei_dot_ej[idx[k, ..., 1], idx[k, ..., 0]].T
-    # # a = numpy.rollaxis(a, -1, start=1)
-    # # multiply the dot products
-    # # <e_i0, e_j0> * <e_i1, e_j1> * <e_i2, e_j2>
-    # A = numpy.prod(a, axis=1)
-
-    # # make sure that the RHS has a matching size
-    # # zeta_n = numpy.outer(numpy.ones(A.shape[0]), zeta)
-    # zeta_n = zeta
-
-    # # x = least_squares(A, zeta_n)
-    # x, _, _, _ = numpy.linalg.lstsq(A, zeta_n)
-
-    # # A is of shape (n+1, n), where each row corresponds to a random
-    # # tetrahedron, each column to a coefficient.
-    # # If this equation system has a solution, it's probably valid for
-    # # many more tetrahedra.
-    # res = numpy.dot(A, x) - zeta
-    # if numpy.all(abs(res) < 1.0e-10):
-    #     return x
-    # # A_dot_x = numpy.einsum('ijk,ik->ij', A, x)
-    # # res = A_dot_x - zeta_n
-    # # is_zero = numpy.all(abs(res) < 1.0e-10, axis=1)
-    # # if numpy.any(is_zero):
-    # #     i = numpy.where(is_zero)[0]
-    # #     return idx[i], x[i]
-    # return None
 
 
 def create_combinations(num_edges, num_summands):
