@@ -10,7 +10,13 @@ def least_squares(A, b):
     # https://github.com/numpy/numpy/issues/8720
     u, s, v = numpy.linalg.svd(A, full_matrices=False)
     uTb = numpy.einsum('ijk,ij->ik', u, b)
-    xx = numpy.einsum('ijk, ij->ik', v, uTb / s)
+    # http://stackoverflow.com/a/37977222/353337
+    splus = numpy.divide(
+            1.0, s,
+            out=numpy.zeros_like(s),
+            where=abs(s) > 1.0e-14
+            )
+    xx = numpy.einsum('ijk, ij->ik', v, uTb * splus)
     return xx
 
 
@@ -46,12 +52,12 @@ def check(ei_dot_ej, idx, zeta):
     return out
 
 
-def create_combinations(num_edges, num_summands):
+def create_combinations(num_edges, num_summands, num_factors_per_summand):
     # create the combinations
     # two edges per dot-product
     i0 = itertools.combinations_with_replacement(range(num_edges), 2)
     # three dot products per summand
-    j0 = itertools.combinations_with_replacement(i0, 3)
+    j0 = itertools.combinations_with_replacement(i0, num_factors_per_summand)
     # Add up a bunch of summands. Make sure they are different (no
     # `_with_replacement`); the rest is handled by the coefficients later.
     idx_it = itertools.combinations(j0, num_summands)
@@ -60,7 +66,11 @@ def create_combinations(num_edges, num_summands):
     #   (n-1+r)! / r! / (n-1)! = (n-1+r (over) r)
     # if len(a) == n.
     len_i0 = comb(num_edges+1, 2, exact=True)
-    len_j0 = comb(len_i0+2, 3, exact=True)
+    len_j0 = comb(
+            len_i0-1+num_factors_per_summand,
+            num_factors_per_summand,
+            exact=True
+            )
     # n! / r! / (n-r)! = (n (over) r)
     # len_idx = comb(len_j0, num_summands, exact=True)
     len_idx = comb(len_j0, num_summands, exact=True)
@@ -83,6 +93,7 @@ def triple_tet_find(
         compute_targets,
         edges,
         num_summands=5,
+        num_factors_per_summand=3,
         batch_size=100,
         verbose=True
         ):
@@ -96,7 +107,9 @@ def triple_tet_find(
 
     ei_dot_ej = numpy.einsum('ilj, klj->ikl', e, e)
 
-    idx_it, len_idx = create_combinations(len(e), num_summands)
+    idx_it, len_idx = create_combinations(
+            len(e), num_summands, num_factors_per_summand
+            )
 
     idx_it = grouper(idx_it, batch_size)
     len_idx = int(len_idx / batch_size) + 1
